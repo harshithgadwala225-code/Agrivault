@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgriVault | Crop Decision Support System</title>
+    <script src="https://cdn.tailwindcss.com"></script> 
+    <!-- tailwind css this is the rademade css classes -->
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen py-10 px-4 font-sans">
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-10">
+            <h1 class="text-4xl font-extrabold text-emerald-400 tracking-tight">🌾 AgriVault</h1>
+            <p class="text-slate-400 mt-2">AI-Powered Agricultural Crop Storage & Sell Optimizer</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Input Form -->
+            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
+                <h2 class="text-xl font-bold mb-6 text-emerald-300 border-b border-slate-700 pb-2">Market Data Inputs</h2>
+                <form id="predictionForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Current Price (₹/kg)</label>
+                        <input type="number" step="0.1" id="current_price" value="28.5" required
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">30-Day Ago Price (₹/kg)</label>
+                        <input type="number" step="0.1" id="price_30d_lag" value="18.0" required
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Stock Quantity (kg)</label>
+                        <input type="number" id="quantity" value="5000" required
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Storage Cost (₹/kg/mo)</label>
+                            <input type="number" step="0.5" id="storage_cost" value="2.0" required
+                                class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Spoilage Rate (%)</label>
+                            <input type="number" step="1" id="spoilage_rate" value="8" required
+                                class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                        </div>
+                    </div>
+                    <button type="submit" 
+                        class="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-xl transition duration-200 shadow-lg shadow-emerald-900/40">
+                        Calculate Recommendation
+                    </button>
+                </form>
+            </div>
+
+            <!-- Output Display -->
+            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col justify-between">
+                <div>
+                    <h2 class="text-xl font-bold mb-6 text-emerald-300 border-b border-slate-700 pb-2">AI Recommendation</h2>
+                    <div id="resultsContainer" class="hidden space-y-6">
+                        <div class="text-center p-4 rounded-xl" id="decisionBadge">
+                            <span class="text-sm font-semibold uppercase tracking-wider text-slate-300">Recommended Action</span>
+                            <div id="decisionText" class="text-3xl font-black mt-1"></div>
+                            <div id="confidenceText" class="text-xs text-slate-400 mt-1"></div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700/50">
+                                <span class="text-slate-400 text-xs block">Immediate Sale Revenue</span>
+                                <span id="immediateRev" class="text-base font-bold text-slate-200">₹0</span>
+                            </div>
+                            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700/50">
+                                <span class="text-slate-400 text-xs block">Est. Stored Revenue</span>
+                                <span id="storedRev" class="text-base font-bold text-slate-200">₹0</span>
+                            </div>
+                            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700/50">
+                                <span class="text-slate-400 text-xs block">Total Storage Cost</span>
+                                <span id="storageCost" class="text-base font-bold text-red-400">₹0</span>
+                            </div>
+                            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700/50">
+                                <span class="text-slate-400 text-xs block">Net Gain / Loss</span>
+                                <span id="netGain" class="text-base font-bold">₹0</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="placeholder" class="text-center py-12 text-slate-500">
+                        Enter market metrics and click calculate to view decision insights.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('predictionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+
+            // This creates an object containing the data that will be sent to FastAPI.
+            const payload = {
+                current_price_per_kg: parseFloat(document.getElementById('current_price').value),
+                price_30d_lag: parseFloat(document.getElementById('price_30d_lag').value),
+                quantity_kg: parseFloat(document.getElementById('quantity').value),
+                storage_cost_per_kg_month: parseFloat(document.getElementById('storage_cost').value),
+                spoilage_rate_pct: parseFloat(document.getElementById('spoilage_rate').value)
+            };
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                // FastAPI sends a JSON response back.               
+                const data = await response.json();
+
+                document.getElementById('placeholder').classList.add('hidden');
+                document.getElementById('resultsContainer').classList.remove('hidden');
+
+                const badge = document.getElementById('decisionBadge');
+                const text = document.getElementById('decisionText');
+                
+                if (data.recommendation_code === 1) {
+                    badge.className = "text-center p-4 rounded-xl bg-emerald-950/80 border border-emerald-500/50";
+                    text.className = "text-3xl font-black mt-1 text-emerald-400";
+                } else {
+                    badge.className = "text-center p-4 rounded-xl bg-amber-950/80 border border-amber-500/50";
+                    text.className = "text-3xl font-black mt-1 text-amber-400";
+                }
+
+                text.innerText = data.decision;
+                document.getElementById('confidenceText').innerText = `Model Confidence: ${data.confidence_percentage}%`;
+                document.getElementById('immediateRev').innerText = `₹${data.financials.immediate_sale_revenue.toLocaleString()}`;
+                document.getElementById('storedRev').innerText = `₹${data.financials.estimated_stored_revenue.toLocaleString()}`;
+                document.getElementById('storageCost').innerText = `₹${data.financials.total_storage_cost.toLocaleString()}`;
+                
+                const netGainEl = document.getElementById('netGain');
+                const gain = data.financials.net_gain_or_loss;
+                netGainEl.innerText = `${gain >= 0 ? '+' : ''}₹${gain.toLocaleString()}`;
+                netGainEl.className = gain >= 0 ? "text-base font-bold text-emerald-400" : "text-base font-bold text-red-400";
+
+            } catch (err) {
+                alert('Error connecting to FastAPI backend. Ensure server is running on http://127.0.0.1:8000');
+            }
+        });
+    </script>
+</body>
+</html>
